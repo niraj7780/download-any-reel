@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Auto Download Hub</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+    .container { max-width: 800px; margin: 0 auto; padding: 2rem; }
+    h1 { text-align: center; margin-bottom: 0.5rem; font-size: 2rem; }
+    .subtitle { text-align: center; color: #94a3b8; margin-bottom: 2rem; }
+    .input-group { display: flex; gap: 0.5rem; margin-bottom: 2rem; }
+    input[type="url"] { flex: 1; padding: 0.75rem 1rem; border: 1px solid #334155; border-radius: 0.5rem; background: #1e293b; color: #e2e8f0; font-size: 1rem; }
+    input[type="url"]:focus { outline: none; border-color: #3b82f6; }
+    button { padding: 0.75rem 1.5rem; border: none; border-radius: 0.5rem; background: #3b82f6; color: white; font-size: 1rem; cursor: pointer; transition: background 0.2s; }
+    button:hover { background: #2563eb; }
+    button:disabled { background: #475569; cursor: not-allowed; }
+    .downloads { display: flex; flex-direction: column; gap: 0.75rem; }
+    .download-card { background: #1e293b; border: 1px solid #334155; border-radius: 0.5rem; padding: 1rem; }
+    .download-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+    .download-url { font-size: 0.875rem; color: #94a3b8; word-break: break-all; }
+    .status { padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; }
+    .status-PENDING { background: #f59e0b20; color: #f59e0b; }
+    .status-DOWNLOADING { background: #3b82f620; color: #3b82f6; }
+    .status-COMPLETED { background: #22c55e20; color: #22c55e; }
+    .status-FAILED { background: #ef444420; color: #ef4444; }
+    .progress-bar { height: 6px; background: #334155; border-radius: 3px; overflow: hidden; margin-top: 0.5rem; }
+    .progress-fill { height: 100%; background: #3b82f6; transition: width 0.3s; }
+    .download-actions { margin-top: 0.5rem; display: flex; gap: 1rem; }
+    .download-actions a, .download-actions button { color: #3b82f6; text-decoration: none; font-size: 0.875rem; background: none; border: none; cursor: pointer; padding: 0; }
+    .download-actions a:hover, .download-actions button:hover { text-decoration: underline; }
+    .error { color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem; }
+    .empty { text-align: center; color: #64748b; padding: 3rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Auto Download Hub</h1>
+    <p class="subtitle">Paste any file URL and we'll download it for you</p>
+    <div class="input-group">
+      <input type="url" id="urlInput" placeholder="https://example.com/file.zip" />
+      <button id="downloadBtn" onclick="submitUrl()">Download</button>
+    </div>
+    <div class="downloads" id="downloads"></div>
+  </div>
+  <script>
+    const API = window.__API_URL__ || 'http://localhost:3001/api';
+
+    async function submitUrl() {
+      const input = document.getElementById('urlInput');
+      const btn = document.getElementById('downloadBtn');
+      const url = input.value.trim();
+      if (!url) return;
+      btn.disabled = true;
+      try {
+        const res = await fetch(`${API}/downloads`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url })
+        });
+        if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+        input.value = '';
+        loadDownloads();
+      } catch (e) {
+        alert(e.message);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function deleteDownload(id) {
+      if (!confirm('Delete this download?')) return;
+      await fetch(`${API}/downloads/${id}`, { method: 'DELETE' });
+      loadDownloads();
+    }
+
+    async function loadDownloads() {
+      const res = await fetch(`${API}/downloads`);
+      const downloads = await res.json();
+      const container = document.getElementById('downloads');
+      if (downloads.length === 0) {
+        container.innerHTML = '<div class="empty">No downloads yet</div>';
+        return;
+      }
+      container.innerHTML = downloads.map(d => {
+        const progress = d.progress || 0;
+        const size = d.size ? formatSize(d.size) : '';
+        const downloaded = d.downloaded ? ` / ${formatSize(d.downloaded)}` : '';
+        return `<div class="download-card">
+          <div class="download-header">
+            <span class="download-url">${d.url}</span>
+            <span class="status status-${d.status}">${d.status}</span>
+          </div>
+          ${d.status === 'DOWNLOADING' ? `<div class="progress-bar"><div class="progress-fill" style="width:${progress}%"></div></div>` : ''}
+          ${d.status === 'COMPLETED' ? `<div class="download-actions"><a href="${API}/downloads/${d.id}/file" download>Download File</a> (${size})<button onclick="deleteDownload(${d.id})">Delete</button></div>` : ''}
+          ${d.status === 'FAILED' ? `<div class="error">${d.error || 'Download failed'}</div>` : ''}
+          ${d.status === 'DOWNLOADING' && size ? `<div style="font-size:0.75rem;color:#64748b;margin-top:0.25rem;">${downloaded}</div>` : ''}
+        </div>`;
+      }).join('');
+    }
+
+    function formatSize(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+      if (bytes < 1073741824) return (bytes / 1048576).toFixed(1) + ' MB';
+      return (bytes / 1073741824).toFixed(2) + ' GB';
+    }
+
+    document.getElementById('urlInput').addEventListener('keydown', e => { if (e.key === 'Enter') submitUrl(); });
+    loadDownloads();
+    setInterval(loadDownloads, 2000);
+  </script>
+</body>
+</html>
