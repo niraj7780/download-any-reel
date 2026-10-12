@@ -60,7 +60,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url })
         });
-        if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+        if (!res.ok) { const data = await res.json().catch(() => ({})); throw new Error(data.error || 'Request failed'); }
         input.value = '';
         loadDownloads();
       } catch (e) {
@@ -78,7 +78,7 @@
 
     async function loadDownloads() {
       const res = await fetch(`${API}/downloads`);
-      const downloads = await res.json();
+      const downloads = await res.json().catch(() => []);
       const container = document.getElementById('downloads');
       if (downloads.length === 0) {
         container.innerHTML = '<div class="empty">No downloads yet</div>';
