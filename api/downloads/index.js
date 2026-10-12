@@ -1,5 +1,5 @@
 const { Redis } = require('@upstash/redis');
-const { Ratelimit } from '@upstash/ratelimit';
+const Ratelimit = require('@upstash/ratelimit').Ratelimit || require('@upstash/ratelimit');
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL,
