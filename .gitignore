@@ -2,3 +2,5 @@ node_modules/
 backend/data/
 backend/storage/
 *.db
+.env
+.vercel

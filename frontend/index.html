@@ -27,11 +27,12 @@
     .status-FAILED { background: #ef444420; color: #ef4444; }
     .progress-bar { height: 6px; background: #334155; border-radius: 3px; overflow: hidden; margin-top: 0.5rem; }
     .progress-fill { height: 100%; background: #3b82f6; transition: width 0.3s; }
-    .download-actions { margin-top: 0.5rem; display: flex; gap: 1rem; }
+    .download-actions { margin-top: 0.5rem; display: flex; gap: 1rem; align-items: center; }
     .download-actions a, .download-actions button { color: #3b82f6; text-decoration: none; font-size: 0.875rem; background: none; border: none; cursor: pointer; padding: 0; }
     .download-actions a:hover, .download-actions button:hover { text-decoration: underline; }
     .error { color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem; }
     .empty { text-align: center; color: #64748b; padding: 3rem; }
+    .size-info { font-size: 0.75rem; color: #64748b; margin-top: 0.25rem; }
   </style>
 </head>
 <body>
@@ -45,7 +46,7 @@
     <div class="downloads" id="downloads"></div>
   </div>
   <script>
-    const API = window.__API_URL__ || 'http://localhost:3001/api';
+    const API = window.__API_URL__ || '/api';
 
     async function submitUrl() {
       const input = document.getElementById('urlInput');
@@ -93,9 +94,9 @@
             <span class="status status-${d.status}">${d.status}</span>
           </div>
           ${d.status === 'DOWNLOADING' ? `<div class="progress-bar"><div class="progress-fill" style="width:${progress}%"></div></div>` : ''}
-          ${d.status === 'COMPLETED' ? `<div class="download-actions"><a href="${API}/downloads/${d.id}/file" download>Download File</a> (${size})<button onclick="deleteDownload(${d.id})">Delete</button></div>` : ''}
+          ${d.status === 'DOWNLOADING' && size ? `<div class="size-info">${downloaded}</div>` : ''}
+          ${d.status === 'COMPLETED' ? `<div class="download-actions"><a href="${API}/downloads/${d.id}/file" download>Download File</a> (${size})<button onclick="deleteDownload('${d.id}')">Delete</button></div>` : ''}
           ${d.status === 'FAILED' ? `<div class="error">${d.error || 'Download failed'}</div>` : ''}
-          ${d.status === 'DOWNLOADING' && size ? `<div style="font-size:0.75rem;color:#64748b;margin-top:0.25rem;">${downloaded}</div>` : ''}
         </div>`;
       }).join('');
     }
